@@ -1,0 +1,72 @@
+/* ============================================
+   Minimal Exam DB (only what we used)
+   Tables: Role, User, Genre, Film
+   ============================================ */
+
+-- Drop tables in correct order (child -> parent)
+IF OBJECT_ID('dbo.Film', 'U')   IS NOT NULL DROP TABLE dbo.Film;
+IF OBJECT_ID('dbo.Genre', 'U')  IS NOT NULL DROP TABLE dbo.Genre;
+IF OBJECT_ID('dbo.[User]', 'U') IS NOT NULL DROP TABLE dbo.[User];
+IF OBJECT_ID('dbo.[Role]', 'U') IS NOT NULL DROP TABLE dbo.[Role];
+
+
+-- ROLE
+-- Identity starts at 1001 so you get IDs like 1001/1002 (as in your screenshot)
+CREATE TABLE dbo.[Role] (
+    RoleId   INT IDENTITY(1001,1) NOT NULL PRIMARY KEY,
+    RoleName NVARCHAR(50) NOT NULL,
+    CONSTRAINT UQ_Role_RoleName UNIQUE (RoleName)
+);
+
+-- USER
+CREATE TABLE dbo.[User] (
+    UserId       INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Username     NVARCHAR(50)  NOT NULL,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    RoleId       INT NOT NULL,
+
+    CONSTRAINT UQ_User_Username UNIQUE (Username),
+    CONSTRAINT FK_User_Role FOREIGN KEY (RoleId) REFERENCES dbo.[Role](RoleId)
+);
+
+-- GENRE
+CREATE TABLE dbo.Genre (
+    GenreId   INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    GenreName NVARCHAR(100) NOT NULL,
+    CONSTRAINT UQ_Genre_GenreName UNIQUE (GenreName)
+);
+
+-- FILM
+CREATE TABLE dbo.Film (
+    FilmId          INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Name            NVARCHAR(200) NOT NULL,
+    ReleaseYear     INT NOT NULL,
+    DurationMinutes INT NOT NULL,
+    GenreId         INT NOT NULL,
+
+    CONSTRAINT FK_Film_Genre FOREIGN KEY (GenreId) REFERENCES dbo.Genre(GenreId),
+    CONSTRAINT CK_Film_ReleaseYear CHECK (ReleaseYear >= 1888),
+    CONSTRAINT CK_Film_Duration CHECK (DurationMinutes > 0)
+);
+
+CREATE INDEX IX_Film_GenreId ON dbo.Film(GenreId);
+
+
+-- Seed roles
+INSERT INTO dbo.[Role] (RoleName)
+VALUES ('User'), ('Admin');
+
+-- Seed admin user (username: admin, password: admin)
+-- Uses your generated hash and Admin RoleId from the Role table
+DECLARE @AdminRoleId INT = (SELECT RoleId FROM dbo.[Role] WHERE RoleName = 'Admin');
+
+INSERT INTO dbo.[User] (Username, PasswordHash, RoleId)
+VALUES (
+  'admin',
+  '$2y$10$aXD9Slq/pcVB.2TbeQsU7OdHN09SDy9EARFEE82AJceYf2fSKh3f.',
+  @AdminRoleId
+);
+
+-- Optional: seed a few genres (remove if you want fully empty)
+INSERT INTO dbo.Genre (GenreName)
+VALUES ('Action'), ('Comedy'), ('Drama'), ('Sci-Fi');
